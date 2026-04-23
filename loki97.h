@@ -13,6 +13,7 @@
 /* Includes: Standard include files */
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 /* Defines: AES */
 
@@ -56,7 +57,7 @@
 
 typedef    unsigned char    BYTE;			/* unsigned byte */
 
-typedef    struct { unsigned long l,r; } ULONG64;	/* 64bit unsigned int */
+typedef    struct { uint32_t l,r; } ULONG64;	/* emulated 64-bit via two 32-bit halves */
 
 
 /*  The structure for key information */

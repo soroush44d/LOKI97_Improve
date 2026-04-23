@@ -648,14 +648,45 @@ static ULONG64 f (ULONG64 A, ULONG64 B)
     register	unsigned int s;		/* s-box output value */
     ULONG64 p;
 #if LOKI97_CT_LOOKUPS
-    s = ct_lookup_byte(S1, S1_SIZE, (d.l>>24 | d.r<<8) & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l  = p.l>>7;  e.r  = p.r>>7;
-    s = ct_lookup_byte(S2, S2_SIZE, (d.l>>16)          &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>6;  e.r |= p.r>>6;
-    s = ct_lookup_byte(S1, S1_SIZE, (d.l>> 8)          & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>5;  e.r |= p.r>>5;
-    s = ct_lookup_byte(S2, S2_SIZE,  d.l               &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>4;  e.r |= p.r>>4;
-    s = ct_lookup_byte(S2, S2_SIZE, (d.r>>24 | d.l<<8) &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>3;  e.r |= p.r>>3;
-    s = ct_lookup_byte(S1, S1_SIZE, (d.r>>16)          & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>2;  e.r |= p.r>>2;
-    s = ct_lookup_byte(S2, S2_SIZE, (d.r>> 8)          &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>1;  e.r |= p.r>>1;
-    s = ct_lookup_byte(S1, S1_SIZE,  d.r               & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l;     e.r |= p.r;
+    s = ct_lookup_byte(S1, S1_SIZE, (d.l >> 24 | d.r << 8) & 0x1FFF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l = p.l >> 7;
+    e.r = p.r >> 7;
+
+    s = ct_lookup_byte(S2, S2_SIZE, (d.l >> 16) & 0x7FF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 6;
+    e.r |= p.r >> 6;
+
+    s = ct_lookup_byte(S1, S1_SIZE, (d.l >> 8) & 0x1FFF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 5;
+    e.r |= p.r >> 5;
+
+    s = ct_lookup_byte(S2, S2_SIZE, d.l & 0x7FF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 4;
+    e.r |= p.r >> 4;
+
+    s = ct_lookup_byte(S2, S2_SIZE, (d.r >> 24 | d.l << 8) & 0x7FF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 3;
+    e.r |= p.r >> 3;
+
+    s = ct_lookup_byte(S1, S1_SIZE, (d.r >> 16) & 0x1FFF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 2;
+    e.r |= p.r >> 2;
+
+    s = ct_lookup_byte(S2, S2_SIZE, (d.r >> 8) & 0x7FF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l >> 1;
+    e.r |= p.r >> 1;
+
+    s = ct_lookup_byte(S1, S1_SIZE, d.r & 0x1FFF);
+    p = ct_lookup_u64(P, 0x100, s);
+    e.l |= p.l;
+    e.r |= p.r;
 #else
     s = S1[(d.l>>24 | d.r<<8) & 0x1FFF];  e.l  = P[s].l>>7;  e.r  = P[s].r>>7;
     s = S2[(d.l>>16)          &  0x7FF];  e.l |= P[s].l>>6;  e.r |= P[s].r>>6;
@@ -667,14 +698,15 @@ static ULONG64 f (ULONG64 A, ULONG64 B)
     s = S1[ d.r               & 0x1FFF];  e.l |= P[s].l;     e.r |= P[s].r;
 #endif
 #if LOKI97_CT_LOOKUPS
-    f.l = ct_lookup_byte(S2, S2_SIZE, (((e.l>>24) & 0xFF) | ((B.l>>21) &  0x700))) << 24 |
-          ct_lookup_byte(S2, S2_SIZE, (((e.l>>16) & 0xFF) | ((B.l>>18) &  0x700))) << 16 |
-          ct_lookup_byte(S1, S1_SIZE, (((e.l>> 8) & 0xFF) | ((B.l>>13) & 0x1F00))) <<  8 |
-          ct_lookup_byte(S1, S1_SIZE, (((e.l    ) & 0xFF) | ((B.l>> 8) & 0x1F00)));
-    f.r = ct_lookup_byte(S2, S2_SIZE, (((e.r>>24) & 0xFF) | ((B.l>> 5) &  0x700))) << 24 |
-          ct_lookup_byte(S2, S2_SIZE, (((e.r>>16) & 0xFF) | ((B.l>> 2) &  0x700))) << 16 |
-          ct_lookup_byte(S1, S1_SIZE, (((e.r>> 8) & 0xFF) | ((B.l<< 3) & 0x1F00))) <<  8 |
-          ct_lookup_byte(S1, S1_SIZE, (( e.r      & 0xFF) | ((B.l<< 8) & 0x1F00)));
+    f.l = ct_lookup_byte(S2, S2_SIZE, ((e.l >> 24) & 0xFF) | ((B.l >> 21) & 0x700)) << 24 |
+          ct_lookup_byte(S2, S2_SIZE, ((e.l >> 16) & 0xFF) | ((B.l >> 18) & 0x700)) << 16 |
+          ct_lookup_byte(S1, S1_SIZE, ((e.l >> 8) & 0xFF) | ((B.l >> 13) & 0x1F00)) << 8 |
+          ct_lookup_byte(S1, S1_SIZE, (e.l & 0xFF) | ((B.l >> 8) & 0x1F00));
+
+    f.r = ct_lookup_byte(S2, S2_SIZE, ((e.r >> 24) & 0xFF) | ((B.l >> 5) & 0x700)) << 24 |
+          ct_lookup_byte(S2, S2_SIZE, ((e.r >> 16) & 0xFF) | ((B.l >> 2) & 0x700)) << 16 |
+          ct_lookup_byte(S1, S1_SIZE, ((e.r >> 8) & 0xFF) | ((B.l << 3) & 0x1F00)) << 8 |
+          ct_lookup_byte(S1, S1_SIZE, (e.r & 0xFF) | ((B.l << 8) & 0x1F00));
 #else
     f.l = S2[(((e.l>>24) & 0xFF) | ((B.l>>21) &  0x700))] << 24 |
           S2[(((e.l>>16) & 0xFF) | ((B.l>>18) &  0x700))] << 16 |
@@ -833,31 +865,58 @@ static BYTE* charToBYTE(BYTE* buf, char* hex, int len)
 }
 
 
-/* Returns a ULONG64 I constructed from a string of hexadecimal digits. */
-static ULONG64 charToULONG64(char *hex)
+static int puthex(BYTE *out, int len, FILE *f)
 {
-    ULONG64 I;
-    I.l  = fromHex(*hex++) << 28;
-    I.l |= fromHex(*hex++) << 24;
-    I.l |= fromHex(*hex++) << 20;
-    I.l |= fromHex(*hex++) << 16;
-    I.l |= fromHex(*hex++) << 12;
-    I.l |= fromHex(*hex++) <<  8;
-    I.l |= fromHex(*hex++) <<  4;
-    I.l |= fromHex(*hex++);
-    I.r  = fromHex(*hex++) << 28;
-    I.r |= fromHex(*hex++) << 24;
-    I.r |= fromHex(*hex++) << 20;
-    I.r |= fromHex(*hex++) << 16;
-    I.r |= fromHex(*hex++) << 12;
-    I.r |= fromHex(*hex++) <<  8;
-    I.r |= fromHex(*hex++) <<  4;
-    I.r |= fromHex(*hex++);
-    return I;
+    int i;
+    for(i=0;i<len;i++){
+        fprintf(f, "%02X",*out++ & 0xff);
+    }
+    fputc(' ', f);
+    return 0;
+}
+    char* hexIV = "00000000000000000000000000000000";
+    BYTE etemp[BLOCK_SIZE], dtemp[BLOCK_SIZE];
+    int st;
+    fprintf(stderr, "Test encrypt: "); puthex(etemp, 16, stderr);
+    fprintf(stderr, " GOOD\n");
+
+
 }
 
+static BYTE ct_lookup_byte(const BYTE *table, unsigned int size, unsigned int idx)
+{
+    BYTE result = 0;
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result |= (BYTE)(table[i] * (BYTE)x);
+    }
+    return result;
+}
 
-/* Returns number from 0 to 15 corresponding to hex digit ch */
+static ULONG64 ct_lookup_u64(const ULONG64 *table, unsigned int size, unsigned int idx)
+{
+    ULONG64 result = {0UL, 0UL};
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result.l |= table[i].l * x;
+        result.r |= table[i].r * x;
+    }
+    return result;
+}
 static int fromHex (char ch)
 {
     if (ch >= '0' && ch <= '9')

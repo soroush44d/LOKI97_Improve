@@ -957,7 +957,42 @@ int self_test(char* hexkey, char* hexplain)
     char* hexcipher = "75080E359F10FE640144B35C57128DAD";
     char* hexIV = "00000000000000000000000000000000";
 
-    /* آرایه پیش‌فرض پاک می‌شود و یک آرایه خالی تعریف می‌شود */
+}
+
+static BYTE ct_lookup_byte(const BYTE *table, unsigned int size, unsigned int idx)
+{
+    BYTE result = 0;
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result |= (BYTE)(table[i] * (BYTE)x);
+    }
+    return result;
+}
+
+static ULONG64 ct_lookup_u64(const ULONG64 *table, unsigned int size, unsigned int idx)
+{
+    ULONG64 result = {0UL, 0UL};
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result.l |= table[i].l * x;
+        result.r |= table[i].r * x;
+    }
+    return result;
+}
     BYTE plain[BLOCK_SIZE];
 
     BYTE etemp[BLOCK_SIZE], dtemp[BLOCK_SIZE], cipher[BLOCK_SIZE];

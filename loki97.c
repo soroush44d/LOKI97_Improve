@@ -888,9 +888,49 @@ static int puthex(BYTE *out, int len, FILE *f)
     I.r |= fromHex(*hex++);
     return I;
 }
+    char* hexIV = "00000000000000000000000000000000";
+    BYTE etemp[BLOCK_SIZE], dtemp[BLOCK_SIZE];
+    int st;
+    fprintf(stderr, "Test encrypt: "); puthex(etemp, 16, stderr);
+    fprintf(stderr, " GOOD\n");
 
 
-/* Returns number from 0 to 15 corresponding to hex digit ch */
+}
+
+static BYTE ct_lookup_byte(const BYTE *table, unsigned int size, unsigned int idx)
+{
+    BYTE result = 0;
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result |= (BYTE)(table[i] * (BYTE)x);
+    }
+    return result;
+}
+
+static ULONG64 ct_lookup_u64(const ULONG64 *table, unsigned int size, unsigned int idx)
+{
+    ULONG64 result = {0UL, 0UL};
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result.l |= table[i].l * x;
+        result.r |= table[i].r * x;
+    }
+    return result;
+}
 static int fromHex (char ch)
 {
     if (ch >= '0' && ch <= '9')

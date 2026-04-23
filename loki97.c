@@ -874,20 +874,6 @@ static int puthex(BYTE *out, int len, FILE *f)
     fputc(' ', f);
     return 0;
 }
-    I.l |= fromHex(*hex++) << 12;
-    I.l |= fromHex(*hex++) <<  8;
-    I.l |= fromHex(*hex++) <<  4;
-    I.l |= fromHex(*hex++);
-    I.r  = fromHex(*hex++) << 28;
-    I.r |= fromHex(*hex++) << 24;
-    I.r |= fromHex(*hex++) << 20;
-    I.r |= fromHex(*hex++) << 16;
-    I.r |= fromHex(*hex++) << 12;
-    I.r |= fromHex(*hex++) <<  8;
-    I.r |= fromHex(*hex++) <<  4;
-    I.r |= fromHex(*hex++);
-    return I;
-}
     char* hexIV = "00000000000000000000000000000000";
     BYTE etemp[BLOCK_SIZE], dtemp[BLOCK_SIZE];
     int st;

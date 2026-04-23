@@ -8,7 +8,7 @@
 int self_test(char* hexkey, char* hexplain);
 
 
-main(int argc, char* argv[])
+int main(int argc, char* argv[])
 {
     int st;
 

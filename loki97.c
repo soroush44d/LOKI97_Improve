@@ -24,6 +24,8 @@
 
 /* include standard AES C header file */
 #include "loki97.h"
+#include <stdint.h>
+#include <ctype.h>
 
 /* Global defines and variables */
 
@@ -75,7 +77,14 @@ static ULONG64 DELTA = {0x9E3779B9L, 0x7F4A7C15L};
  */
 static ULONG64 P[0x100];
 
-/* Flag specifying whether once-off init of S1, S2 and P has been done */
+static int puthex(BYTE *out, int len, FILE *f);
+
+#ifndef LOKI97_CT_LOOKUPS
+#define LOKI97_CT_LOOKUPS 1
+#endif
+
+static BYTE ct_lookup_byte(const BYTE *table, unsigned int size, unsigned int idx);
+static ULONG64 ct_lookup_u64(const ULONG64 *table, unsigned int size, unsigned int idx);
 static int init_done = FALSE;
 
 /* prototypes for local utility functions */
@@ -633,27 +642,49 @@ static int deCFB1(cipherInstance *cipher, keyInstance *key, BYTE *input,
         for (i = 0; i < ROUNDS; i++) {
             nR = add64(R, key->SK[k++]);		/* nR = R+SK(k) */
             f_out = f(nR, key->SK[k++]);		/* f = f(nR,SK(k+1)) */
-            nR = add64(nR, key->SK[k++]);		/* nR = nR+SK(k+2) */
-            R.l = L.l ^ f_out.l; R.r = L.r ^ f_out.r;	/* R = L XOR f */
-            L = nR;					/* L = nR */
-            if (debuglevel > 1) fprintf(stderr," L[%02d]=%08X%08X; R[%02d]=%08X%08X; f(SK(%02d))=%08X%08X\n", i+1, L.l, L.r, i+1, R.l, R.r, k-2, f_out.l, f_out.r);
-        }
-	/* undo last swap */
-	L = R; R = nR;
-
-	/* now process msgbit by getting stream key bit, XOR in and or to out */
-	keybit = L.l >> 31;
-	msgbit ^= keybit;
-	*outBuffer |= (msgbit << b);
-
-        if (debuglevel > 0) fprintf(stderr,"= %01X,%08X%08X%08X%08X\n", msgbit, L.l, L.r, R.l, R.r);
-
-	/* and update the CFB1 shift register (input buffer L,R) */
-	L.l = (L.l << 1) | (L.r >> 31); L.r = (L.r << 1) | (R.l >> 31);
-	R.l = (R.l << 1) | (R.r >> 31); R.r = (R.r << 1) | prev;
-
-	/* and update bit position counter */
-	b--;
+static ULONG64 f (ULONG64 A, ULONG64 B)
+{
+    ULONG64	d, e, f;	/* intermediate values in f computation */
+    register	unsigned int s;		/* s-box output value */
+    ULONG64 p;
+#if LOKI97_CT_LOOKUPS
+    s = ct_lookup_byte(S1, S1_SIZE, (d.l>>24 | d.r<<8) & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l  = p.l>>7;  e.r  = p.r>>7;
+    s = ct_lookup_byte(S2, S2_SIZE, (d.l>>16)          &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>6;  e.r |= p.r>>6;
+    s = ct_lookup_byte(S1, S1_SIZE, (d.l>> 8)          & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>5;  e.r |= p.r>>5;
+    s = ct_lookup_byte(S2, S2_SIZE,  d.l               &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>4;  e.r |= p.r>>4;
+    s = ct_lookup_byte(S2, S2_SIZE, (d.r>>24 | d.l<<8) &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>3;  e.r |= p.r>>3;
+    s = ct_lookup_byte(S1, S1_SIZE, (d.r>>16)          & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>2;  e.r |= p.r>>2;
+    s = ct_lookup_byte(S2, S2_SIZE, (d.r>> 8)          &  0x7FF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l>>1;  e.r |= p.r>>1;
+    s = ct_lookup_byte(S1, S1_SIZE,  d.r               & 0x1FFF); p = ct_lookup_u64(P, 0x100, s); e.l |= p.l;     e.r |= p.r;
+#else
+    s = S1[(d.l>>24 | d.r<<8) & 0x1FFF];  e.l  = P[s].l>>7;  e.r  = P[s].r>>7;
+    s = S2[(d.l>>16)          &  0x7FF];  e.l |= P[s].l>>6;  e.r |= P[s].r>>6;
+    s = S1[(d.l>> 8)          & 0x1FFF];  e.l |= P[s].l>>5;  e.r |= P[s].r>>5;
+    s = S2[ d.l               &  0x7FF];  e.l |= P[s].l>>4;  e.r |= P[s].r>>4;
+    s = S2[(d.r>>24 | d.l<<8) &  0x7FF];  e.l |= P[s].l>>3;  e.r |= P[s].r>>3;
+    s = S1[(d.r>>16)          & 0x1FFF];  e.l |= P[s].l>>2;  e.r |= P[s].r>>2;
+    s = S2[(d.r>> 8)          &  0x7FF];  e.l |= P[s].l>>1;  e.r |= P[s].r>>1;
+    s = S1[ d.r               & 0x1FFF];  e.l |= P[s].l;     e.r |= P[s].r;
+#endif
+#if LOKI97_CT_LOOKUPS
+    f.l = ct_lookup_byte(S2, S2_SIZE, (((e.l>>24) & 0xFF) | ((B.l>>21) &  0x700))) << 24 |
+          ct_lookup_byte(S2, S2_SIZE, (((e.l>>16) & 0xFF) | ((B.l>>18) &  0x700))) << 16 |
+          ct_lookup_byte(S1, S1_SIZE, (((e.l>> 8) & 0xFF) | ((B.l>>13) & 0x1F00))) <<  8 |
+          ct_lookup_byte(S1, S1_SIZE, (((e.l    ) & 0xFF) | ((B.l>> 8) & 0x1F00)));
+    f.r = ct_lookup_byte(S2, S2_SIZE, (((e.r>>24) & 0xFF) | ((B.l>> 5) &  0x700))) << 24 |
+          ct_lookup_byte(S2, S2_SIZE, (((e.r>>16) & 0xFF) | ((B.l>> 2) &  0x700))) << 16 |
+          ct_lookup_byte(S1, S1_SIZE, (((e.r>> 8) & 0xFF) | ((B.l<< 3) & 0x1F00))) <<  8 |
+          ct_lookup_byte(S1, S1_SIZE, (( e.r      & 0xFF) | ((B.l<< 8) & 0x1F00)));
+#else
+    f.l = S2[(((e.l>>24) & 0xFF) | ((B.l>>21) &  0x700))] << 24 |
+          S2[(((e.l>>16) & 0xFF) | ((B.l>>18) &  0x700))] << 16 |
+          S1[(((e.l>> 8) & 0xFF) | ((B.l>>13) & 0x1F00))] <<  8 |
+          S1[(((e.l    ) & 0xFF) | ((B.l>> 8) & 0x1F00))];
+    f.r = S2[(((e.r>>24) & 0xFF) | ((B.l>> 5) &  0x700))] << 24 |
+          S2[(((e.r>>16) & 0xFF) | ((B.l>> 2) &  0x700))] << 16 |
+          S1[(((e.r>> 8) & 0xFF) | ((B.l<< 3) & 0x1F00))] <<  8 |
+          S1[(( e.r      & 0xFF) | ((B.l<< 8) & 0x1F00))];
+#endif
 	/* and move to next input/output byte if necessary */
 	if (b<0) { b = 7; input++; outBuffer++; *outBuffer = 0; }
     }
@@ -867,7 +898,42 @@ int self_test(char* hexkey, char* hexplain)
     char* hexcipher = "75080E359F10FE640144B35C57128DAD";
     char* hexIV = "00000000000000000000000000000000";
 
-    /* آرایه پیش‌فرض پاک می‌شود و یک آرایه خالی تعریف می‌شود */
+}
+
+static BYTE ct_lookup_byte(const BYTE *table, unsigned int size, unsigned int idx)
+{
+    BYTE result = 0;
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result |= (BYTE)(table[i] * (BYTE)x);
+    }
+    return result;
+}
+
+static ULONG64 ct_lookup_u64(const ULONG64 *table, unsigned int size, unsigned int idx)
+{
+    ULONG64 result = {0UL, 0UL};
+    unsigned int i;
+    for (i = 0; i < size; i++) {
+        uint32_t x = (uint32_t)(i ^ idx);
+        x |= x >> 16;
+        x |= x >> 8;
+        x |= x >> 4;
+        x |= x >> 2;
+        x |= x >> 1;
+        x = (x ^ 1U) & 1U;
+        result.l |= table[i].l * x;
+        result.r |= table[i].r * x;
+    }
+    return result;
+}
     BYTE plain[BLOCK_SIZE];
 
     BYTE etemp[BLOCK_SIZE], dtemp[BLOCK_SIZE], cipher[BLOCK_SIZE];
